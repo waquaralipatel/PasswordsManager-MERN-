@@ -12,11 +12,15 @@ const MainComponent = () => {
     const [passArray, setpassArray] = useState([])
     const [form, setform] = useState({ site: "", username: "", password: "" })
 
+    const getPasswords = async () => {
+        const req = await fetch("http://localhost:3000/");
+        const pwds = await req.json();   // ✅ ADD await here
+        console.log(pwds);
+        setpassArray(Array.isArray(pwds) ? pwds : []);
+    };
+
     useEffect(() => {
-        const pwds = localStorage.getItem("passwords")
-        if (pwds) {
-            setpassArray(JSON.parse(pwds))
-        }
+        getPasswords();
     }, [])
 
     const handleChange = (e) => {
@@ -41,33 +45,43 @@ const MainComponent = () => {
 
     }
 
-    const savePwd = () => {
-        if(form.site.length>0 && form.username.length>0 && form.password.length>0){
-        setpassArray([...passArray, {...form,  id: uuidv4()} ])
-        localStorage.setItem("passwords", JSON.stringify([...passArray, {...form,  id: uuidv4()} ]))
-        setform({ site: "", username: "", password: "" })
-        console.log([...passArray, form])
-        toast.success("Credentials Saved!💾");
-        }else{
+    const savePwd = async () => {
+        if (form.site.length > 0 && form.username.length > 0 && form.password.length > 0) {
+            //if form if already exist delete del that id value 
+            fetch("http://localhost:3000/", { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: form.id }) });
+             
+            //save pwd
+            setpassArray([...passArray, { ...form, id: uuidv4() }])
+            let res = await fetch("http://localhost:3000/", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...form, id: uuidv4() }) });
+            console.log(res);
+
+            setform({ site: "", username: "", password: "" })
+            console.log([...passArray, form])
+            toast.success("Credentials Saved!💾");
+        } else {
             toast.error("Please fill all the fields!⚠️");
         }
     }
-    const delPwd = (id) => {
-        let c=confirm("Are you sure you want to delete this password?")
-        if(c){
+    const delPwd = async (id) => {
+        let c = confirm("Are you sure you want to delete this password?")
+        if (c) {
             console.log("delete pwd with id", id);
-            setpassArray(passArray.filter((item) => item.id !== id))    
-            localStorage.setItem("passwords", JSON.stringify(passArray.filter((item) => item.id !== id)))
+            setpassArray(passArray.filter((item) => item.id !== id))
+            let res = await fetch("http://localhost:3000/", { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) });
             toast("Credentials Deleted!🗑️");
-            
+
         }
     }
     const editPwd = (id) => {
-        console.log("Eidting pwd with id", id);
-        setform(passArray.find((item) => item.id === id)) 
-        setpassArray(passArray.filter((item) => item.id !== id))    
-        localStorage.setItem("passwords", JSON.stringify(passArray.filter((item) => item.id !== id))) 
-    }
+        console.log("Editing pwd with id", id);
+
+        const selected = passArray.find((item) => item.id === id);
+        setform(selected);
+
+        // keep it an ARRAY ✅
+        setpassArray(passArray.filter((item) => item.id !== id));
+    };
+
 
     return (
         <>
@@ -89,7 +103,7 @@ const MainComponent = () => {
                     <button onClick={savePwd} className='bg-green-700 hover:bg-green-700 rounded-full md:w-1/7 w-full py-1 font-bold text-black border-2 border-green-900 cursor-pointer'>Save
                     </button>
                     <ToastContainer />
-                    
+
                 </div>
                 <div className="passwords-table md:overflow-y-auto">
                     {passArray.length === 0 && <p className='text-center text-lg font-bold'>No passwords saved yet..!!</p>}
@@ -119,7 +133,7 @@ const MainComponent = () => {
                                     </td>
                                     <td className="py-2 ">
                                         <div className="text-copy flex justify-center items-center gap-2">
-                                            <span>{item.password}</span>
+                                            <span>{"*".repeat(item.password.length)}</span>
                                             <div className="copyText cursor-pointer" onClick={() => { copyText(item.password) }}>
                                                 <span className="material-symbols-outlined hover:text-green-900">
                                                     content_copy
@@ -131,11 +145,11 @@ const MainComponent = () => {
                                     <td className="py-2 flex justify-center">
                                         <div className="del-edit flex gap-3 ">
                                             <div className="edit text-xl cursor-pointer hover:text-green-900"
-                                            onClick={()=>{editPwd(item.id)}}>
+                                                onClick={() => { editPwd(item.id) }}>
                                                 <FaEdit />
                                             </div>
                                             <div className="del text-xl cursor-pointer hover:text-green-900"
-                                            onClick={()=>{delPwd(item.id)}}>
+                                                onClick={() => { delPwd(item.id) }}>
                                                 <MdDeleteForever />
                                             </div>
                                         </div>
